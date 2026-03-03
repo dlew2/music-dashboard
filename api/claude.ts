@@ -1,12 +1,37 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const PROMPTS: Record<string, string> = {
-  'music-news': `Search the web for the 3 most important music and guitar news stories from the past week. Include new album releases, artist news, and industry developments. For each story return a JSON object with: title (string), summary (exactly 2 sentences), url (string or null). Return ONLY a valid JSON array, no markdown, no other text.`,
+  'music-news': `Search the web for the 3 most important music and guitar news stories from the past week. Include new album releases, artist news, and industry developments. For each story return a JSON object with: title (string), summary (exactly 2 sentences, plain text only — no HTML tags, no markdown, no asterisks, no bullet point symbols), url (string or null). Return ONLY a valid JSON array, no markdown, no other text.`,
 
   'gear-radar': `List the 3 most notable new guitar gear releases from the past few months — including guitars, pedals, amps, and audio interfaces. Use your knowledge. For each return a JSON object with: title (string), summary (exactly 2 sentences describing the gear and why it matters), url (string or null). Return ONLY a valid JSON array, no markdown, no other text.`,
 
   'discovery-pick': `Suggest 3 guitar artists or albums that a serious guitar enthusiast with eclectic taste should discover. Mix genres — include at least one hidden gem, one emerging artist, and one overlooked classic. For each return: artist (string), album (string or null), genre (string), why (exactly 2 sentences on why they're worth hearing). Return ONLY a valid JSON array, no markdown, no other text.`,
 };
+
+function stripFormatting(str: string): string {
+  return str
+    .replace(/<[^>]*>/g, '')          // HTML tags
+    .replace(/\*\*?|__?/g, '')        // bold/italic asterisks and underscores
+    .replace(/^#+\s*/gm, '')          // markdown headings
+    .replace(/^[-•·–]\s*/gm, '')      // bullet symbols at line start
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanItem(item: any): any {
+  if (typeof item !== 'object' || item === null) return item;
+  const cleaned: any = {};
+  for (const [k, v] of Object.entries(item)) {
+    cleaned[k] = typeof v === 'string' ? stripFormatting(v) : v;
+  }
+  return cleaned;
+}
 
 const USE_WEB_SEARCH: Record<string, boolean> = {
   'music-news': true,
@@ -73,12 +98,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .map((b: any) => b.text as string)
     .join('');
 
-  let parsed: unknown;
+  let parsed: unknown[];
   try {
     parsed = JSON.parse(text.replace(/```json|```/g, '').trim());
   } catch {
     return res.status(500).json({ error: 'Failed to parse Claude response', raw: text.slice(0, 500) });
   }
 
-  return res.status(200).json({ data: parsed });
+  const cleaned = Array.isArray(parsed) ? parsed.map(cleanItem) : parsed;
+  return res.status(200).json({ data: cleaned });
 }
