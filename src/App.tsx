@@ -3,15 +3,15 @@ import RssSection from './components/RssSection';
 import DiscoveryPick from './components/DiscoveryPick';
 
 const MUSIC_NEWS_FEEDS = [
-  { name: 'Guitar World',  url: 'https://www.guitarworld.com/rss' },
-  { name: 'Premier Guitar', url: 'https://www.premierguitar.com/rss' },
-  { name: 'Pitchfork',     url: 'https://pitchfork.com/rss/news/feed.json', isJsonFeed: true },
+  { name: 'Guitar World',   url: 'https://www.guitarworld.com/rss' },
+  { name: 'Premier Guitar', url: 'https://www.premierguitar.com/feeds/feed.rss' },
+  { name: 'Pitchfork',      url: 'https://pitchfork.com/feed/feed-news/rss/' },
 ];
 
 const GEAR_RADAR_FEEDS = [
-  { name: 'Guitar World Gear',  url: 'https://www.guitarworld.com/rss/category/gear' },
-  { name: 'Premier Guitar',     url: 'https://www.premierguitar.com/rss' },
-  { name: 'Reverb News',        url: 'https://reverb.com/news/rss' },
+  { name: 'Guitar World',   url: 'https://www.guitarworld.com/feeds.xml' },
+  { name: 'Premier Guitar', url: 'https://www.premierguitar.com/feeds/feed.rss' },
+  { name: 'MusicRadar',     url: 'https://www.musicradar.com/feeds/news' },
 ];
 
 export default function App() {
