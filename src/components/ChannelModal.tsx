@@ -38,19 +38,14 @@ export default function ChannelModal({ channels, onAdd, onRemove, onClose }: Pro
     setError('');
 
     try {
-      const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-      const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=1`;
-      const res = await fetch(apiUrl);
+      const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/channels?part=snippet&id=${channelId}&key=${apiKey}`
+      );
       const data = await res.json();
-
-      if (data.status !== 'ok') throw new Error('Could not fetch channel. Check the channel ID.');
-
-      const name = data.feed?.title ?? 'Unknown Channel';
-      onAdd({
-        id: crypto.randomUUID(),
-        name,
-        youtubeId: channelId,
-      });
+      if (!data.items?.length) throw new Error('Channel not found. Check the channel ID.');
+      const name = data.items[0].snippet.title;
+      onAdd({ id: crypto.randomUUID(), name, youtubeId: channelId });
       setInput('');
     } catch (e: any) {
       setError(e.message ?? 'Failed to fetch channel info.');

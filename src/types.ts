@@ -13,16 +13,11 @@ export interface Video {
   channelId: string;
 }
 
-export interface NewsItem {
+export interface RssItem {
   title: string;
-  summary: string;
-  url?: string;
-}
-
-export interface GearItem {
-  title: string;
-  summary: string;
-  url?: string;
+  link: string;
+  pubDate: string;
+  source: string;
 }
 
 export interface DiscoveryItem {

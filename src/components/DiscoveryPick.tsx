@@ -1,22 +1,14 @@
 import { useState, useEffect } from 'react';
-import type { NewsItem, GearItem, DiscoveryItem } from '../types';
+import type { DiscoveryItem } from '../types';
 
-type SectionType = 'music-news' | 'gear-radar' | 'discovery-pick';
-type Item = NewsItem | GearItem | DiscoveryItem;
-
-interface Props {
-  type: SectionType;
-  title: string;
-  subtitle: string;
-  emoji: string;
-}
-
+const CACHE_KEY = 'discovery_pick_cache_v1';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const cacheKey = (type: string) => `claude_cache_v1_${type}`;
 
-function loadCache(type: string): Item[] | null {
+const PROMPT = `Suggest 3 guitar artists or albums that a serious guitar enthusiast with eclectic taste should discover. Mix genres — include at least one hidden gem, one emerging artist, and one overlooked classic. Return ONLY a valid JSON array with objects containing: artist (string), album (string or null), genre (string), why (exactly 2 sentences, plain text only — no markdown, no asterisks, no bullet symbols). No other text.`;
+
+function loadCache(): DiscoveryItem[] | null {
   try {
-    const raw = localStorage.getItem(cacheKey(type));
+    const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const { data, timestamp } = JSON.parse(raw);
     if (Date.now() - timestamp < CACHE_TTL) return data;
@@ -24,27 +16,10 @@ function loadCache(type: string): Item[] | null {
   return null;
 }
 
-function saveCache(type: string, data: Item[]) {
+function saveCache(data: DiscoveryItem[]) {
   try {
-    localStorage.setItem(cacheKey(type), JSON.stringify({ data, timestamp: Date.now() }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data, timestamp: Date.now() }));
   } catch {}
-}
-
-function NewsCard({ item }: { item: NewsItem | GearItem }) {
-  return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm">
-      <h4 className="text-sm font-semibold text-gray-900 leading-snug mb-2">{item.title}</h4>
-      <p className="text-sm text-gray-500 leading-relaxed">{item.summary}</p>
-      {item.url && (
-        <a
-          href={item.url}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-block mt-3 text-xs font-semibold text-blue-600 hover:underline"
-        >Read more &rarr;</a>
-      )}
-    </div>
-  );
 }
 
 function DiscoveryCard({ item }: { item: DiscoveryItem }) {
@@ -65,34 +40,41 @@ function DiscoveryCard({ item }: { item: DiscoveryItem }) {
   );
 }
 
-export default function ClaudeSection({ type, title, subtitle, emoji }: Props) {
-  const [items, setItems] = useState<Item[]>([]);
+export default function DiscoveryPick() {
+  const [items, setItems] = useState<DiscoveryItem[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [error, setError] = useState('');
-  const usesWebSearch = type === 'music-news';
 
   useEffect(() => {
-    const cached = loadCache(type);
+    const cached = loadCache();
     if (cached) {
       setItems(cached);
       setStatus('done');
     }
-  }, [type]);
+  }, []);
 
   async function fetchData() {
     setStatus('loading');
     setError('');
     try {
-      const res = await fetch('/api/claude', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type }),
-      });
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: PROMPT }] }],
+          }),
+        }
+      );
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? `Error ${res.status}`);
-      setItems(json.data);
+      if (!res.ok) throw new Error(json.error?.message ?? `Gemini error ${res.status}`);
+      const text: string = json.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      const parsed: DiscoveryItem[] = JSON.parse(text.replace(/```json|```/g, '').trim());
+      setItems(parsed);
       setStatus('done');
-      saveCache(type, json.data);
+      saveCache(parsed);
     } catch (e: any) {
       setError(e.message ?? 'Something went wrong');
       setStatus('error');
@@ -103,8 +85,8 @@ export default function ClaudeSection({ type, title, subtitle, emoji }: Props) {
     <section>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">{emoji} {title}</h2>
-          <p className="text-sm text-gray-400 mt-0.5">{subtitle}</p>
+          <h2 className="text-xl font-bold text-gray-900">&#10024; Discovery Pick</h2>
+          <p className="text-sm text-gray-400 mt-0.5">Artists and albums worth your ears</p>
         </div>
         <button
           onClick={fetchData}
@@ -114,29 +96,23 @@ export default function ClaudeSection({ type, title, subtitle, emoji }: Props) {
           {status === 'loading' ? (
             <>
               <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              {usesWebSearch ? 'Searching...' : 'Thinking...'}
+              Thinking...
             </>
-          ) : status === 'done' ? 'Refresh' : 'Fetch latest'}
+          ) : status === 'done' ? 'Refresh' : 'Get recommendations'}
         </button>
       </div>
 
       {status === 'idle' && (
         <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
-          <p className="text-4xl mb-3">{emoji}</p>
-          <p className="text-gray-400 text-sm">
-            {usesWebSearch
-              ? 'Click "Fetch latest" to search the web with Claude'
-              : 'Click "Fetch latest" to get recommendations from Claude'}
-          </p>
+          <p className="text-4xl mb-3">&#10024;</p>
+          <p className="text-gray-400 text-sm">Click "Get recommendations" for AI-powered picks from Gemini</p>
         </div>
       )}
 
       {status === 'loading' && (
         <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
           <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">
-            {usesWebSearch ? 'Claude is searching the web...' : 'Claude is thinking...'}
-          </p>
+          <p className="text-gray-400 text-sm">Gemini is thinking...</p>
         </div>
       )}
 
@@ -148,11 +124,7 @@ export default function ClaudeSection({ type, title, subtitle, emoji }: Props) {
 
       {status === 'done' && items.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((item, i) =>
-            type === 'discovery-pick'
-              ? <DiscoveryCard key={i} item={item as DiscoveryItem} />
-              : <NewsCard key={i} item={item as NewsItem | GearItem} />
-          )}
+          {items.map((item, i) => <DiscoveryCard key={i} item={item} />)}
         </div>
       )}
     </section>

@@ -1,5 +1,18 @@
 import GuitarTeachers from './components/GuitarTeachers';
-import ClaudeSection from './components/ClaudeSection';
+import RssSection from './components/RssSection';
+import DiscoveryPick from './components/DiscoveryPick';
+
+const MUSIC_NEWS_FEEDS = [
+  { name: 'Guitar World',  url: 'https://www.guitarworld.com/rss' },
+  { name: 'Premier Guitar', url: 'https://www.premierguitar.com/rss' },
+  { name: 'Pitchfork',     url: 'https://pitchfork.com/rss/news/feed.json', isJsonFeed: true },
+];
+
+const GEAR_RADAR_FEEDS = [
+  { name: 'Guitar World Gear',  url: 'https://www.guitarworld.com/rss/category/gear' },
+  { name: 'Premier Guitar',     url: 'https://www.premierguitar.com/rss' },
+  { name: 'Reverb News',        url: 'https://reverb.com/news/rss' },
+];
 
 export default function App() {
   return (
@@ -18,30 +31,25 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-6 py-10 space-y-14">
         <GuitarTeachers />
 
-        <ClaudeSection
-          type="music-news"
+        <RssSection
           title="Music News"
           subtitle="Latest music and guitar news from around the web"
           emoji="&#128240;"
+          feeds={MUSIC_NEWS_FEEDS}
         />
 
-        <ClaudeSection
-          type="gear-radar"
+        <RssSection
           title="Gear Radar"
           subtitle="New guitars, pedals, amps &amp; interfaces"
           emoji="&#127901;"
+          feeds={GEAR_RADAR_FEEDS}
         />
 
-        <ClaudeSection
-          type="discovery-pick"
-          title="Discovery Pick"
-          subtitle="Artists and albums worth your ears"
-          emoji="&#10024;"
-        />
+        <DiscoveryPick />
       </main>
 
       <footer className="border-t border-gray-200 bg-white py-5 text-center">
-        <span className="text-xs text-gray-400">Music Dashboard &middot; Powered by Claude &middot; Built with Vite + React</span>
+        <span className="text-xs text-gray-400">Music Dashboard &middot; Built with Vite + React</span>
       </footer>
     </div>
   );

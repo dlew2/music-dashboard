@@ -17,16 +17,16 @@ function saveChannels(channels: Channel[]) {
 }
 
 async function fetchVideos(channel: Channel): Promise<Video[]> {
-  const rssUrl = `https://www.youtube.com/feeds/videos.xml?channel_id=${channel.youtubeId}`;
-  const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&count=3`;
-  const res = await fetch(apiUrl);
+  const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channel.youtubeId}&order=date&maxResults=3&type=video&key=${apiKey}`;
+  const res = await fetch(url);
   const data = await res.json();
-  if (data.status !== 'ok') return [];
-  return (data.items ?? []).slice(0, 3).map((item: any) => ({
-    title: item.title,
-    link: item.link,
-    pubDate: item.pubDate,
-    thumbnail: item.thumbnail ?? item.enclosure?.link ?? '',
+  if (!data.items?.length) return [];
+  return data.items.map((item: any) => ({
+    title: item.snippet.title,
+    link: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+    pubDate: item.snippet.publishedAt,
+    thumbnail: item.snippet.thumbnails.medium?.url ?? item.snippet.thumbnails.default?.url ?? '',
     channelName: channel.name,
     channelId: channel.id,
   }));
