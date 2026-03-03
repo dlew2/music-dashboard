@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { NewsItem, GearItem, DiscoveryItem } from '../types';
 
 type SectionType = 'music-news' | 'gear-radar' | 'discovery-pick';
@@ -9,6 +9,25 @@ interface Props {
   title: string;
   subtitle: string;
   emoji: string;
+}
+
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+const cacheKey = (type: string) => `claude_cache_v1_${type}`;
+
+function loadCache(type: string): Item[] | null {
+  try {
+    const raw = localStorage.getItem(cacheKey(type));
+    if (!raw) return null;
+    const { data, timestamp } = JSON.parse(raw);
+    if (Date.now() - timestamp < CACHE_TTL) return data;
+  } catch {}
+  return null;
+}
+
+function saveCache(type: string, data: Item[]) {
+  try {
+    localStorage.setItem(cacheKey(type), JSON.stringify({ data, timestamp: Date.now() }));
+  } catch {}
 }
 
 function NewsCard({ item }: { item: NewsItem | GearItem }) {
@@ -50,6 +69,15 @@ export default function ClaudeSection({ type, title, subtitle, emoji }: Props) {
   const [items, setItems] = useState<Item[]>([]);
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [error, setError] = useState('');
+  const usesWebSearch = type === 'music-news';
+
+  useEffect(() => {
+    const cached = loadCache(type);
+    if (cached) {
+      setItems(cached);
+      setStatus('done');
+    }
+  }, [type]);
 
   async function fetchData() {
     setStatus('loading');
@@ -64,6 +92,7 @@ export default function ClaudeSection({ type, title, subtitle, emoji }: Props) {
       if (!res.ok) throw new Error(json.error ?? `Error ${res.status}`);
       setItems(json.data);
       setStatus('done');
+      saveCache(type, json.data);
     } catch (e: any) {
       setError(e.message ?? 'Something went wrong');
       setStatus('error');
@@ -85,7 +114,7 @@ export default function ClaudeSection({ type, title, subtitle, emoji }: Props) {
           {status === 'loading' ? (
             <>
               <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Searching...
+              {usesWebSearch ? 'Searching...' : 'Thinking...'}
             </>
           ) : status === 'done' ? 'Refresh' : 'Fetch latest'}
         </button>
@@ -94,14 +123,20 @@ export default function ClaudeSection({ type, title, subtitle, emoji }: Props) {
       {status === 'idle' && (
         <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
           <p className="text-4xl mb-3">{emoji}</p>
-          <p className="text-gray-400 text-sm">Click "Fetch latest" to search the web with Claude</p>
+          <p className="text-gray-400 text-sm">
+            {usesWebSearch
+              ? 'Click "Fetch latest" to search the web with Claude'
+              : 'Click "Fetch latest" to get recommendations from Claude'}
+          </p>
         </div>
       )}
 
       {status === 'loading' && (
         <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
           <div className="w-6 h-6 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-gray-400 text-sm">Claude is searching the web...</p>
+          <p className="text-gray-400 text-sm">
+            {usesWebSearch ? 'Claude is searching the web...' : 'Claude is thinking...'}
+          </p>
         </div>
       )}
 
